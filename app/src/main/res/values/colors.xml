@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="chart_orange">#e39a4b</color>
+    <color name="chart_green">#0dc161</color>
+    <color name="chart_blue">#1c7fdb</color>
+    <color name="chart_purple">#7f22e3</color>
+    <color name="chart_mblue">#e6513a</color>
+    <color name="chart_turquoise">#0cf1c7</color>
+</resources>
