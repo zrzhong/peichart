@@ -1,11 +1,13 @@
 package com.zzr.mypiechart;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
 import android.text.TextPaint;
@@ -13,6 +15,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 import java.text.DecimalFormat;
 import java.util.List;
@@ -25,19 +28,20 @@ public class MyPieChart extends View {
     /**
      * 圆环的画笔
      */
-    private Paint paint;
+    private Paint arcPaint;
     /**
-     * 横线上的文字
+     * 黄线以及横线上文字的画笔
      */
-    private Paint textPaint;
+    private Paint dataPaint;
+
     /**
-     * 横线下的文字
-     */
-    private Paint textPaint2;
-    /**
-     * 圆中心的文字
+     * 圆中心上面文字画笔
      */
     private Paint centerTextPaint;
+    /**
+     * 圆中心下面文字画笔
+     */
+    private Paint centerTextPaint2;
     /**
      * 包围圆弧的矩形
      */
@@ -63,73 +67,90 @@ public class MyPieChart extends View {
     /**
      * 画笔的宽度(圆环的宽度)
      */
-    private float circleWidth;
+    private float circleWidth = 100;
     /**
      * 横线的长度
      */
-    private int lineWidth;
-    private String text;
-    private String text2;
+    private float lineWidth = 100;
+    private float centerTextSize = 50;
+    private int centerTextColor = Color.BLACK;
+    private float dataTextSize = 40;
     private String textPercent;
     private Paint percentPaint;
     private Rect percentRect;
+    private float total;
 
     public MyPieChart(Context context) {
-        super(context);
-        init();
+        this(context, null);
     }
 
     public MyPieChart(Context context, @Nullable AttributeSet attrs) {
-        super(context, attrs);
-        init();
+        this(context, attrs, 0);
     }
 
     public MyPieChart(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+        //初始化自定义属性
+        TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.MyPieChart);
+        centerTextSize = a.getDimension(R.styleable.MyPieChart_centerTextSize, centerTextSize);
+        centerTextColor = a.getColor(R.styleable.MyPieChart_centerTextColor, centerTextColor);
+        dataTextSize = a.getDimension(R.styleable.MyPieChart_dataTextSize, dataTextSize);
+        lineWidth = a.getDimension(R.styleable.MyPieChart_lineWidth, lineWidth);
+        a.recycle();
         init();
     }
 
     private void init() {
-        lineWidth = DisplayMetricsUtil.dip2px(getContext(), 50);
-        circleWidth = DisplayMetricsUtil.dip2px(getContext(), 40);
-        paint = new Paint();
-        paint.setAntiAlias(true);
-        paint.setStrokeWidth(circleWidth);
-        paint.setStyle(Paint.Style.STROKE);
+//        lineWidth = DisplayMetricsUtil.dip2px(getContext(), 50);
+//        circleWidth = DisplayMetricsUtil.dip2px(getContext(), 40);
+        arcPaint = new Paint();
+        arcPaint.setAntiAlias(true);
+        arcPaint.setStrokeWidth(circleWidth);
+        arcPaint.setStyle(Paint.Style.STROKE);
 
-        textPaint = new TextPaint();
-        textPaint.setAntiAlias(true);
-        textPaint.setTextSize(40);
-
-        textPaint2 = new TextPaint();
-        textPaint2.setAntiAlias(true);
-        textPaint2.setTextSize(40);
+        dataPaint = new TextPaint();
+        dataPaint.setAntiAlias(true);
+        dataPaint.setTextSize(dataTextSize);
 
         centerTextPaint = new Paint();
-        centerTextPaint.setTextSize(40);
+        centerTextPaint.setTextSize(centerTextSize);
         centerTextPaint.setAntiAlias(true);
-        centerTextPaint.setColor(Color.BLACK);
+        centerTextPaint.setColor(centerTextColor);
+        centerTextPaint.setTypeface(Typeface.DEFAULT_BOLD);
+
+        centerTextPaint2 = new Paint();
+        centerTextPaint2.setTextSize(centerTextSize);
+        centerTextPaint2.setAntiAlias(true);
+        centerTextPaint2.setColor(centerTextColor);
 
         rectF = new RectF();
         textBounds = new Rect();
         textBounds2 = new Rect();
         //百分百数字的格式
         numberFormat = new DecimalFormat("0.0");
-        text = "100";
-        text2 = "总数(起)";
 
-        textPercent = "23.8%";
+        textPercent = "00.0%";
         percentPaint = new Paint();
         percentRect = new Rect();
-        textPaint.getTextBounds(textPercent, 0, textPercent.length(), percentRect);
+        dataPaint.getTextBounds(textPercent, 0, textPercent.length(), percentRect);
     }
+
 
     public void setCircleWidth(float circleWidth) {
         this.circleWidth = circleWidth;
     }
 
     public void setPieEntities(List<PieEntity> pieEntities) {
+        if (pieEntities == null || pieEntities.isEmpty()) {
+            Toast.makeText(getContext(), "沒有数据", Toast.LENGTH_SHORT).show();
+            return;
+        }
         this.pieEntities = pieEntities;
+        //数据总和
+        total = 0f;
+        for (PieEntity pieEntity : pieEntities) {
+            total += pieEntity.getNumber();
+        }
     }
 
     public void setRadius(float radius) {
@@ -156,45 +177,34 @@ public class MyPieChart extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        //数据总和
-        float total = 0f;
-        for (PieEntity pieEntity : pieEntities) {
-            total += pieEntity.getNumber();
-        }
-        centerTextPaint.getTextBounds(text, 0, text.length(), textBounds);
-        //画中间文字
-        canvas.drawText(text, centerX - textBounds.width() / 2, centerY - textBounds.height(),
-                centerTextPaint);
-        centerTextPaint.getTextBounds(text2, 0, text2.length(), textBounds2);
-        canvas.drawText(text2, centerX - textBounds2.width() / 2, centerY + textBounds2.height(),
-                centerTextPaint);
-//        if (radius == 0) {
-//            radius = getWidth() > getHeight() ? getHeight() / 2 : getWidth() / 2;
-//        }
+        //画中间的文字
+        drawCenterText(canvas);
+        //画圆弧，横线，文字
+        calculateAndDraw(canvas);
+    }
+
+    private void calculateAndDraw(Canvas canvas) {
         float startC = 0;
-        //新的半径，用来计算折现的起始坐标
+        //新的半径，用来计算横线的起始坐标
         nRadius = radius + circleWidth / 2;
         float minTextWidth = (float) Math.sqrt((Math.pow(nRadius, 2))
                 - Math.pow(nRadius - textBounds.height(), 2));
-        Log.i("peichart", "minTextWidth: " + minTextWidth);
         for (PieEntity pieEntity : pieEntities) {
             //百分比
             String percent = numberFormat.format(pieEntity.getNumber() / total * 100) + "%";
             //角度
             float sweep = (pieEntity.getNumber() / total) * 360;
-            textPaint.setColor(ContextCompat.getColor(getContext(), pieEntity.getColorRes()));
-            paint.setColor(ContextCompat.getColor(getContext(), pieEntity.getColorRes()));
-//            rectF.set(centerX - radius, centerY - radius,
-//                    centerX + radius, centerY + radius);
+            dataPaint.setColor(ContextCompat.getColor(getContext(), pieEntity.getColorRes()));
+            arcPaint.setColor(ContextCompat.getColor(getContext(), pieEntity.getColorRes()));
             //画扇形
-            canvas.drawArc(rectF, startC - 0.5f, sweep + 0.5f, false, paint);
+            canvas.drawArc(rectF, startC - 0.5f, sweep + 0.5f, false, arcPaint);
 
             //弧线中点与圆心连线 与起始角度的夹角
             float arcCenterC = startC + sweep / 2;
-            //折线起点
+            //横线起点
             float arcCenterX = 0;
             float arcCenterY = 0;
-            //折线终点
+            //横线终点
             float arcCenterX2 = 0;
             float arcCenterY2 = 0;
             //不同象限，夹角和起点终点坐标不一样
@@ -208,9 +218,10 @@ public class MyPieChart extends View {
                 float a = arcCenterX + percentRect.width() * 2 / 5;
                 if (a < minTextX) {
                     a = minTextX;
+                    arcCenterX2 = arcCenterX + lineWidth * 2;
                 }
-                canvas.drawText(percent, a, arcCenterY - textBounds.height() / 4, textPaint);
-                canvas.drawText(percent, a, arcCenterY + textBounds.height() * 3 / 2, textPaint);
+                canvas.drawText(percent, a, arcCenterY - percentRect.height() / 4, dataPaint);
+                canvas.drawText(percent, a, arcCenterY + percentRect.height() * 5 / 4, dataPaint);
             } else if (arcCenterC >= 90 && arcCenterC < 180) {
                 arcCenterC = 180 - arcCenterC;
                 arcCenterX = (float) (centerX - nRadius * Math.cos(Math.toRadians(arcCenterC)));
@@ -218,13 +229,14 @@ public class MyPieChart extends View {
                 arcCenterX2 = arcCenterX - lineWidth;
                 arcCenterY2 = arcCenterY;
                 //画文字
-                float minTextX = centerX - minTextWidth;
+                float minTextX = centerX - minTextWidth - percentRect.width() * 2 / 5 - percentRect.width();
                 float a = arcCenterX - percentRect.width() * 2 / 5 - percentRect.width();
                 if (a > minTextX) {
                     a = minTextX;
+                    arcCenterX2 = arcCenterX - lineWidth * 2;
                 }
-                canvas.drawText(percent, a, arcCenterY - textBounds.height() / 4, textPaint);
-                canvas.drawText(percent, a, arcCenterY + textBounds.height() * 3 / 2, textPaint);
+                canvas.drawText(percent, a, arcCenterY - percentRect.height() / 4, dataPaint);
+                canvas.drawText(percent, a, arcCenterY + percentRect.height() * 5 / 4, dataPaint);
             } else if (arcCenterC >= 180 && arcCenterC < 270) {
                 arcCenterC = 270 - arcCenterC;
                 arcCenterX = (float) (centerX - nRadius * Math.sin(Math.toRadians(arcCenterC)));
@@ -232,13 +244,14 @@ public class MyPieChart extends View {
                 arcCenterX2 = arcCenterX - lineWidth;
                 arcCenterY2 = arcCenterY;
                 //画文字
-                float minTextX = centerX - minTextWidth;
+                float minTextX = centerX - minTextWidth - percentRect.width() * 2 / 5 - percentRect.width();
                 float a = arcCenterX - percentRect.width() * 2 / 5 - percentRect.width();
                 if (a > minTextX) {
                     a = minTextX;
+                    arcCenterX2 = arcCenterX - lineWidth * 2;
                 }
-                canvas.drawText(percent, a, arcCenterY - textBounds.height() / 4, textPaint);
-                canvas.drawText(percent, a, arcCenterY + textBounds.height() * 3 / 2, textPaint);
+                canvas.drawText(percent, a, arcCenterY - percentRect.height() / 4, dataPaint);
+                canvas.drawText(percent, a, arcCenterY + percentRect.height() * 5 / 4, dataPaint);
             } else if (arcCenterC >= 270 && arcCenterC < 360) {
                 arcCenterC = 360 - arcCenterC;
                 arcCenterX = (float) (centerX + nRadius * Math.cos(Math.toRadians(arcCenterC)));
@@ -250,17 +263,30 @@ public class MyPieChart extends View {
                 float a = arcCenterX + percentRect.width() * 2 / 5;
                 if (a < minTextX) {
                     a = minTextX;
+                    arcCenterX2 = arcCenterX + lineWidth * 2;
                 }
-                canvas.drawText(percent, a, arcCenterY - textBounds.height() / 4, textPaint);
-                canvas.drawText(percent, a, arcCenterY + textBounds.height() * 3 / 2, textPaint);
+                canvas.drawText(percent, a, arcCenterY - percentRect.height() / 4, dataPaint);
+                canvas.drawText(percent, a, arcCenterY + percentRect.height() * 5 / 4, dataPaint);
             }
-            //画短线 弧线中点为起始点 线平行x轴，长10dp
-            canvas.drawLine(arcCenterX, arcCenterY, arcCenterX2, arcCenterY2, textPaint);
+            //画横线
+            canvas.drawLine(arcCenterX, arcCenterY, arcCenterX2, arcCenterY2, dataPaint);
             pieEntity.setStartC(startC);
             pieEntity.setEndC(startC + sweep);
             startC += sweep;
         }
+    }
 
+    private void drawCenterText(Canvas canvas) {
+        String totalText = String.valueOf(total);
+        centerTextPaint.getTextBounds(totalText, 0, totalText.length(), textBounds);
+        //画上面文字
+        canvas.drawText(totalText, centerX - textBounds.width() / 2, centerY - textBounds.height() / 2,
+                centerTextPaint);
+        String text2 = "总数（起）";
+        centerTextPaint.getTextBounds(text2, 0, text2.length(), textBounds2);
+        //画下面的文字
+        canvas.drawText(text2, centerX - textBounds2.width() / 2, centerY + textBounds2.height(),
+                centerTextPaint2);
     }
 
     @Override

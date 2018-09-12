@@ -24,12 +24,13 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         List<PieEntity> pieEntries = new ArrayList<>();
-        pieEntries.add(new PieEntity(6, R.color.chart_orange, false));
-        pieEntries.add(new PieEntity(2, R.color.chart_green, false));
-        pieEntries.add(new PieEntity(3, R.color.chart_blue, false));
-        pieEntries.add(new PieEntity(4, R.color.chart_purple, false));
+        pieEntries.add(new PieEntity(3, R.color.chart_orange, false));
+        pieEntries.add(new PieEntity(1, R.color.chart_green, false));
+        pieEntries.add(new PieEntity(1, R.color.chart_blue, false));
+        pieEntries.add(new PieEntity(6, R.color.chart_purple, false));
         pieEntries.add(new PieEntity(1, R.color.chart_mblue, false));
-        pieEntries.add(new PieEntity(5, R.color.chart_turquoise, false));
+        pieEntries.add(new PieEntity(1, R.color.chart_turquoise, false));
+        pieEntries.add(new PieEntity(3, R.color.chart_turquoise2, false));
         pieChart.setPieEntities(pieEntries);
         pieChart2.setPieEntities(pieEntries);
     }
